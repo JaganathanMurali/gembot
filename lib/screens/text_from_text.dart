@@ -1,30 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:gembot/providers/gemini_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:speech_to_text/speech_to_text.dart'
-    as stt; // Import the speech_to_text package
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:flutter_tts/flutter_tts.dart'; // Import the flutter_tts package
 
 class TextFromVoiceScreen extends StatefulWidget {
   const TextFromVoiceScreen({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _TextFromVoiceScreenState createState() => _TextFromVoiceScreenState();
 }
 
 class _TextFromVoiceScreenState extends State<TextFromVoiceScreen> {
-  // Declare TextEditingController and SpeechToText instances
   final TextEditingController _textController = TextEditingController();
   final stt.SpeechToText _speech = stt.SpeechToText();
+  final FlutterTts _flutterTts = FlutterTts(); // Initialize FlutterTts
 
-  bool _isListening = false; // Track whether the app is listening
-  String _voiceInput = ''; // Store the recognized voice input
+  bool _isListening = false;
+  String _voiceInput = '';
 
   @override
   Widget build(BuildContext context) {
     final geminiProvider = Provider.of<GeminiProvider>(context);
 
-    // ignore: deprecated_member_use
     return WillPopScope(
       onWillPop: () async {
         geminiProvider.reset();
@@ -56,8 +54,7 @@ class _TextFromVoiceScreenState extends State<TextFromVoiceScreen> {
                   ),
                   Expanded(
                     child: IconButton(
-                      onPressed:
-                          _listen, // Start listening when the button is pressed
+                      onPressed: _listen,
                       icon: Icon(
                         _isListening ? Icons.mic : Icons.mic_none,
                         color: _isListening ? Colors.red : Colors.black,
@@ -86,6 +83,14 @@ class _TextFromVoiceScreenState extends State<TextFromVoiceScreen> {
                           ),
                         )
                       : const SizedBox.shrink(),
+              const SizedBox(height: 16),
+              if (geminiProvider.response != null)
+                ElevatedButton(
+                  onPressed: () async {
+                    await _flutterTts.speak(geminiProvider.response!);
+                  },
+                  child: const Text('Read'),
+                ),
             ],
           ),
         ),
@@ -93,32 +98,26 @@ class _TextFromVoiceScreenState extends State<TextFromVoiceScreen> {
     );
   }
 
-  /// Method to handle voice input
   void _listen() async {
     if (!_isListening) {
-      // Check if the SpeechToText instance is available and not listening
       bool available = await _speech.initialize(
         onStatus: (val) => print('onStatus: $val'),
         onError: (val) => print('onError: $val'),
       );
 
       if (available) {
-        // Start listening
         setState(() => _isListening = true);
         _speech.listen(
           onResult: (val) {
             setState(() {
               _voiceInput = val.recognizedWords;
-              _textController.text =
-                  _voiceInput; // Set the recognized words to the text field
+              _textController.text = _voiceInput;
             });
-            print(
-                'Recognized Words: $_voiceInput'); // Print the recognized words to the terminal
+            print('Recognized Words: $_voiceInput');
           },
         );
       }
     } else {
-      // Stop listening
       setState(() => _isListening = false);
       _speech.stop();
     }
